@@ -68,7 +68,6 @@ class CourseRunner {
       courses: (preferences.courses || []).map(c => ({ ...c,
         status: c.status === 'running' || c.detail?.startsWith('学习通将课程页转入安全检测') ? 'paused' : c.status,
         detail: c.detail?.startsWith('学习通将课程页转入安全检测') ? '上次课程页面发生跳转，点击继续队列重新检查当前页面。' : c.detail })),
-      parallel: [1, 2, 3].includes(preferences.parallel) ? preferences.parallel : 2,
       termFilter: preferences.termFilter || 'auto', terms: [], selectedTerm: '0', termNotice: '',
       queueRunning: false, queueNotice: preferences.queueNotice || '', catalog: [] };
     this.courseQueue = new CourseQueue(this);
@@ -139,7 +138,7 @@ class CourseRunner {
   async save() {
     if (!this.dataDir) return;
     await fs.mkdir(this.dataDir, { recursive: true });
-    await fs.writeFile(path.join(this.dataDir, 'preferences.json'), JSON.stringify({ options: this.state.options, courseURL: this.state.courseURL, courses: this.state.courses, parallel: this.state.parallel, termFilter: this.state.termFilter, queueNotice: this.state.queueNotice }, null, 2), 'utf8');
+    await fs.writeFile(path.join(this.dataDir, 'preferences.json'), JSON.stringify({ options: this.state.options, courseURL: this.state.courseURL, courses: this.state.courses, termFilter: this.state.termFilter, queueNotice: this.state.queueNotice }, null, 2), 'utf8');
   }
   async dispatch(command) {
     if (command.type === 'state') return this.snapshot();

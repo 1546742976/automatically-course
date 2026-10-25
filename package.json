@@ -1,6 +1,6 @@
 {
   "name": "chaoxing-course-assistant",
-  "version": "0.5.7",
+  "version": "0.5.8",
   "private": true,
   "description": "学习通本地课程助手",
   "scripts": {

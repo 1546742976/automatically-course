@@ -3,22 +3,20 @@ const { openCourseChapter, isCourseChapter } = require('./catalog.cjs');
 class CourseQueue {
   constructor(owner) { this.owner = owner; this.jobs = new Map(); this.pages = new Map(); }
   async closeInactivePages(page) {
-    if (this.owner.state.parallel === 1) {
-      const running = [...this.jobs.values()].filter(job => job.course.status === 'running').map(job => job.runner.page);
-      for (const other of this.owner.context.pages()) {
-        if (other === page || other === this.owner.dashboard || running.includes(other) || other.isClosed()) continue;
-        try {
-          const url = new URL(other.url());
-          if (/(^|\.)chaoxing\.com$/.test(url.hostname)) {
-            for (const [id, saved] of this.pages) if (saved === other) {
-              const course = this.owner.state.courses.find(c => c.id === id);
-              if (course && isCourseChapter(other.url(), id)) course.resumeURL = other.url();
-              this.pages.delete(id);
-            }
-            await other.close();
+    const running = [...this.jobs.values()].filter(job => job.course.status === 'running').map(job => job.runner.page);
+    for (const other of this.owner.context.pages()) {
+      if (other === page || other === this.owner.dashboard || running.includes(other) || other.isClosed()) continue;
+      try {
+        const url = new URL(other.url());
+        if (/(^|\.)chaoxing\.com$/.test(url.hostname)) {
+          for (const [id, saved] of this.pages) if (saved === other) {
+            const course = this.owner.state.courses.find(c => c.id === id);
+            if (course && isCourseChapter(other.url(), id)) course.resumeURL = other.url();
+            this.pages.delete(id);
           }
-        } catch (error) { if (!other.isClosed()) throw error; }
-      }
+          await other.close();
+        }
+      } catch (error) { if (!other.isClosed()) throw error; }
     }
   }
   activePage() {
@@ -30,8 +28,7 @@ class CourseQueue {
     const owner = this.owner, state = owner.state;
     if (!state.courses.length) throw new Error('请至少勾选一门课程并加入队列。');
     await owner.stop();
-    state.parallel = [1, 2, 3].includes(Number(options?.parallel)) ? Number(options.parallel) : state.parallel;
-    if (state.parallel > 1) state.queueNotice = '';
+    state.queueNotice = '';
     state.options = { rate: [1, 1.25, 1.5, 2].includes(Number(options?.rate)) ? Number(options.rate) : 1,
       muted: options?.muted ?? true, autoNext: true };
     for (const course of state.courses) if (course.status !== 'done') { course.status = 'pending'; course.detail = '等待安排处理。'; }
@@ -42,7 +39,7 @@ class CourseQueue {
   async fill() {
     const { owner } = this;
     let changed = false;
-    while (owner.state.queueRunning && this.jobs.size < owner.state.parallel) {
+    while (owner.state.queueRunning && this.jobs.size < 1) {
       const course = owner.state.courses.find(c => c.status === 'pending');
       if (!course) break;
       course.status = 'running'; course.detail = '正在打开课程…';
@@ -96,14 +93,10 @@ class CourseQueue {
         course.status = 'attention';
         const detail = `${course.title}：${course.detail}`;
         await owner.stop();
-        if (state.parallel > 1) {
-          await this.clearPages();
-          state.queueNotice = '学习通提示多终端学习冲突，已自动切换为 1 门课程顺序处理。';
-          await this.start({ ...state.options, parallel: 1 });
-        } else {
-          owner.publish('attention', `${detail}。当前已使用单门模式，请关闭其他正在学习该账号的页面或设备后继续。`);
-          await owner.save();
-        }
+        course.status = 'attention';
+        course.detail = detail;
+        owner.publish('attention', `${detail}。队列已暂停，请按学习通提示处理后再继续。`);
+        await owner.save();
         return;
       }
       if (!job.error && report.navigationIssue && !job.recovered) {
@@ -137,8 +130,7 @@ class CourseQueue {
     }
     const reports = [...this.jobs.values()].filter(j => j.ready && !j.error);
     const primary = reports[0]?.runner.snapshot();
-    const count = this.jobs.size;
-    owner.publish(primary?.status || 'loading', `${count} 门课程处理中${primary ? ` · ${primary.detail}` : '，正在载入章节…'}`,
+    owner.publish(primary?.status || 'loading', `${primary ? `${primary.title}处理中 · ${primary.detail}` : '正在载入章节…'}`,
       { enabled: true, title: primary?.title || '', currentTime: primary?.currentTime || 0, duration: primary?.duration || null,
         tasks: reports.flatMap(j => (j.runner.state.tasks || []).map(t => `${j.course.title}：${t}`)) });
   }

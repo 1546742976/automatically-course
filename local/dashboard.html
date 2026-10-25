@@ -13,7 +13,7 @@
     <div id="courseChoices" class="course-choices"><p class="hint">登录后刷新课程列表，即可一次勾选多门课程。</p></div>
     <button id="saveQueue" class="outline">将所选课程加入队列</button><div class="divider"></div>
     <div class="section-title"><span>02</span><h2>选择播放方式</h2></div>
-    <label class="setting" for="parallel"><span>同时处理课程数<small>每门课内部按章节顺序处理</small></span><select id="parallel"><option value="1">1 门 · 顺序</option><option value="2" selected>2 门 · 并行</option><option value="3">3 门 · 并行</option></select></label>
+    <p class="hint">课程按队列顺序逐门处理；切换时先关闭上一门课程页，并保存其章节位置。</p>
     <label class="setting" for="rate"><span>播放速度</span><select id="rate"><option value="1">1 × 正常速度</option><option value="1.25">1.25 ×</option><option value="1.5">1.5 ×</option><option value="2">2 ×</option></select></label>
     <label class="setting"><span>静音播放<small>建议开启，方便自动开始播放</small></span><input id="muted" type="checkbox" checked></label>
     <label class="setting"><span>完成本页后切换下一节</span><input id="autoNext" type="checkbox" checked></label>
@@ -27,7 +27,7 @@
     </details>
     <div class="actions"><button id="startQueue">开始 / 继续队列 <span>▶</span></button><button id="stop" class="outline" disabled>暂停</button></div>
     <button id="start" class="text-button">只处理当前章节</button>
-    <p class="hint">有空位时自动接续下一门。需人工验证时暂停全部；其他未适配任务会记下原因。并行是否计入进度以课程平台为准。</p><p id="error" role="alert"></p>
+    <p class="hint">完成一门后自动接续下一门。需人工验证时暂停队列；其他未适配任务会记下原因。</p><p id="error" role="alert"></p>
   </section><aside>
     <section class="card status-card" aria-live="polite"><div class="status-top"><span class="eyebrow">当前状态</span><i id="indicator"></i></div>
       <h2 id="status">正在连接</h2><p id="detail">读取本地助手状态…</p>
@@ -36,7 +36,7 @@
       <button id="scan" class="text-button">扫描当前章节任务 ↻</button><ul id="tasks"></ul>
     </section>
     <section class="card queue-card"><div class="section-title"><span>队列</span><h2>课程安排</h2></div><ol id="courseQueue"></ol><p id="queueSummary" class="hint">尚未安排课程。</p><p id="queueNotice" class="hint" role="status"></p></section>
-    <section class="tips"><h3>开始前，只需这几步</h3><ol><li>点击连接学习通，在助手内完成登录。</li><li>按学期筛选，勾选多门课程加入队列。</li><li>选择并行数量，点击开始队列。</li></ol>
+    <section class="tips"><h3>开始前，只需这几步</h3><ol><li>点击连接学习通，在助手内完成登录。</li><li>按学期筛选，勾选多门课程加入队列。</li><li>确认队列顺序，点击开始队列。</li></ol>
       <p>首次登录后，本机保留浏览器登录状态。运行期间保持电脑唤醒、联网，并保留这个窗口。</p><p>支持视频、音频、部分文档阅读及文字练习。图片和特殊字体可截图识题；未知任务和人工验证会提示处理。</p>
     </section>
   </aside></div>

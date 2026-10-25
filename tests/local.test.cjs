@@ -415,7 +415,6 @@ test('多选课程读取、排序、顺序处理，记录未适配课程后继�
   for (const choice of await app.dashboard.locator('.course-choice input').all()) await choice.check();
   await app.dashboard.locator('#saveQueue').click();
   await waitFor(() => app.runner.state.courses.length === 3, '多选加入队列');
-  await app.dashboard.locator('#parallel').selectOption('1');
   await app.dashboard.locator('#startQueue').click();
   await waitFor(() => app.runner.state.courses[2]?.status === 'running' && app.runner.state.status === 'playing', '接续第三门课', 20000);
   assert.deepEqual(app.runner.state.courses.map(c => c.status), ['done', 'attention', 'running']);
@@ -434,7 +433,7 @@ test('多选课程读取、排序、顺序处理，记录未适配课程后继�
   assert.ok(saved.courses[2].resumeURL.includes('courseId=queueC'));
   await app.runner.dispatch({ type: 'set-queue', courses: [app.runner.state.courses[2], app.runner.state.courses[0]] });
   assert.equal(app.runner.state.courses[0].title, '课程丙');
-  await app.runner.dispatch({ type: 'start-queue', options: { rate: 1, parallel: 1 } });
+  await app.runner.dispatch({ type: 'start-queue', options: { rate: 1 } });
   await waitFor(() => app.runner.state.status === 'playing', '继续暂停课程');
   assert.ok(app.runner.activePage().url().includes('courseId=queueC'));
   await stop();
@@ -450,57 +449,37 @@ test('队列遇到身份验证暂停全部课程，保留后续课程等待处�
   await app.runner.dispatch({ type: 'stop' });
 });
 
-test('两门课程独立并行播放，释放空位后接续第三门，暂停同时停止全部播放器', { timeout: 25000 }, async () => {
+test('旧并行配置被忽略，课程逐门运行并在切换前关闭上一门页面', { timeout: 25000 }, async () => {
   await app.runner.dispatch({ type: 'set-queue', courses: [] });
   await app.runner.dispatch({ type: 'set-queue', courses: ['queueA', 'queueC', 'queueD'].map((id, i) => ({ title: `并行课程${i + 1}`, url: `${origin}/mycourse/studentstudy?courseId=${id}&clazzid=1` })) });
-  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 2, rate: 1 } });
-  await waitFor(() => app.runner.courseQueue.jobs.size === 2 && [...app.runner.courseQueue.jobs.values()].every(j => j.runner.state.status === 'playing'), '两个播放器同时开始');
-  assert.equal(app.runner.state.courses[2].status, 'pending');
-  const ongoing = app.runner.courseQueue.jobs.get('queueC:1').runner;
-  const frame = ongoing.page.frames().find(f => f.url().includes('/ananas/modules/video/'));
-  const before = await frame.locator('video').evaluate(v => v.currentTime);
-  await waitFor(() => app.runner.state.courses[2].status === 'running', '释放空位后接续第三门');
-  assert.equal(app.runner.courseQueue.jobs.size, 2);
+  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 3, rate: 1 } });
+  await waitFor(() => app.runner.courseQueue.jobs.size === 1 && app.runner.courseQueue.jobs.get('queueA:1')?.runner.page, '只启动队列首课');
+  assert.deepEqual(app.runner.state.courses.map(c => c.status), ['running', 'pending', 'pending']);
+  const firstPage = app.runner.courseQueue.jobs.get('queueA:1').runner.page;
+  await waitFor(() => app.runner.state.courses[1].status === 'running' && app.runner.courseQueue.pages.get('queueC:1') && !app.runner.courseQueue.pages.get('queueC:1').isClosed(), '首课结束后启动下一门');
+  assert.equal(app.runner.courseQueue.jobs.size, 1);
   assert.equal(app.runner.state.courses[0].status, 'done');
-  assert.ok(await frame.locator('video').evaluate(v => !v.paused && v.currentTime > 0));
-  assert.ok(await frame.locator('video').evaluate(v => v.currentTime) >= before);
+  assert.equal(firstPage.isClosed(), true, '切换前关闭上一门课程页');
+  assert.ok(app.runner.state.courses[0].resumeURL.includes('courseId=queueA'));
+  assert.ok(app.runner.courseQueue.pages.get('queueC:1').url().includes('courseId=queueC'));
   await app.runner.dispatch({ type: 'stop' });
   assert.equal(app.runner.courseQueue.jobs.size, 0);
-  assert.equal(await frame.locator('video').evaluate(v => v.paused), true);
   assert.equal(app.runner.state.queueRunning, false);
-  assert.equal(app.runner.state.parallel, 2);
 });
 
-test('跳回首页自动恢复一次，重复跳转仅暂停受影响课程，保留正确章节和其他课程', async () => {
+test('跳回首页自动恢复一次并保留正确章节位置', async () => {
+  await app.runner.dispatch({ type: 'stop' });
   await app.runner.dispatch({ type: 'set-queue', courses: [] });
   await app.runner.dispatch({ type: 'set-queue', courses: ['queueC', 'queueD'].map(id => ({ title: id, url: `${origin}/mycourse/studentstudy?courseId=${id}&clazzid=1` })) });
-  const begin = async () => {
-    await app.runner.dispatch({ type: 'start-queue', options: { parallel: 2 } });
-    await waitFor(() => app.runner.courseQueue.jobs.size === 2 && [...app.runner.courseQueue.jobs.values()].every(j => j.runner.state.status === 'playing'), '两个课程播放');
-    return [...app.runner.courseQueue.jobs.values()];
-  };
-  for (const detection of [true, false]) {
-    const [first, second] = await begin();
-    const page = first.runner.page;
-    const media = second.runner.page.frames().find(f => f.url().includes('/ananas/modules/video/'));
-    const resume = first.course.resumeURL;
-    await page.goto(detection ? 'https://detect.chaoxing.com/api/monitor_temp' : 'https://i.mooc.chaoxing.com/space/index', { waitUntil: 'domcontentloaded' });
-    await waitFor(() => first.recovered && first.ready && first.runner.state.status === 'playing', '从入口自动恢复同一课程');
-    assert.equal(first.runner.page, page);
-    assert.equal(app.runner.courseQueue.jobs.size, 2);
-    assert.equal(first.course.resumeURL, resume);
-    assert.equal(await media.locator('video').evaluate(v => v.paused), false);
-    await page.goto('https://i.mooc.chaoxing.com/space/index', { waitUntil: 'domcontentloaded' });
-    await waitFor(() => app.runner.state.courses[0].status === 'attention' && app.runner.courseQueue.jobs.size === 1, '记录跳转并保留其他课程');
-    assert.match(app.runner.state.courses[0].detail, /跳转到学习通首页/);
-    assert.doesNotMatch(app.runner.state.courses[0].detail, /安全检测|验证/);
-    assert.equal(app.runner.state.courses[0].status, 'attention');
-    assert.equal(app.runner.state.courses[1].status, 'running');
-    assert.equal(app.runner.state.queueRunning, true);
-    assert.equal(page.isClosed(), false);
-    assert.equal(await media.locator('video').evaluate(v => v.paused), false);
-    await app.runner.dispatch({ type: 'stop' });
-  }
+  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 2 } });
+  await waitFor(() => app.runner.courseQueue.jobs.size === 1 && app.runner.state.status === 'playing', '单门课程开始');
+  const [first] = [...app.runner.courseQueue.jobs.values()];
+  const page = first.runner.page;
+  const resume = first.course.resumeURL;
+  await page.goto('https://detect.chaoxing.com/api/monitor_temp', { waitUntil: 'domcontentloaded' });
+  await waitFor(() => first.recovered && first.ready && first.runner.state.status === 'playing', '从入口自动恢复同一课程');
+  assert.equal(first.runner.page, page);
+  assert.equal(first.course.resumeURL, resume);
   await app.runner.dispatch({ type: 'stop' });
 });
 
@@ -515,65 +494,61 @@ test('检测地址自动返回章节后继续播放，不保留错误的验证�
   await app.runner.dispatch({ type: 'stop' });
 });
 
-test('平台原生提示多终端冲突时保留提示，自动停止并行并按原队列顺序单门继续', async () => {
-  await app.runner.dispatch({ type: 'set-queue', courses: ['queueC', 'queueD'].map(id => ({ title: id, url: `${origin}/courselist/opencoursenewfy?courseId=${id}&clazzId=1` })) });
-  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 2 } });
-  await waitFor(() => app.runner.courseQueue.jobs.size === 2 && [...app.runner.courseQueue.jobs.values()].every(j => j.runner.state.status === 'playing'), '两个课程开始');
-  const pages = [...app.runner.courseQueue.pages.values()];
+test('平台原生多终端提示保留原话并暂停队列，不自动重启', async () => {
+  await app.runner.dispatch({ type: 'set-queue', courses: [{ title: '课程丙', url: `${origin}/courselist/opencoursenewfy?courseId=queueC&clazzId=1` }, { title: '课程丁', url: `${origin}/courselist/opencoursenewfy?courseId=queueD&clazzId=1` }] });
+  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 3 } });
+  await waitFor(() => app.runner.courseQueue.jobs.size === 1 && app.runner.state.status === 'playing', '逐门队列开始');
+  const page = app.runner.activePage();
   const message = '您的账号在另一台浏览器设备登入章节页面。多终端登录可能会被判定异常学习。';
-  await pages[1].goto(`https://detect.chaoxing.com/api/monitor_temp?mes=${encodeURIComponent(message)}`, { waitUntil: 'domcontentloaded' });
-  await waitFor(() => app.runner.state.parallel === 1 && app.runner.state.status === 'playing', '多终端提示后单门恢复');
-  assert.equal(app.runner.state.queueRunning, true);
-  assert.equal(app.runner.courseQueue.jobs.size, 1);
-  assert.deepEqual(app.runner.state.courses.map(c => c.status), ['running', 'pending']);
-  assert.ok(pages.every(p => p.isClosed()), '关闭旧课程页，停止它们的会话心跳');
-  await waitFor(async () => (await app.dashboard.locator('#queueNotice').textContent()).includes('多终端'), '面板显示降为顺序处理的原因');
-  assert.equal(await app.dashboard.locator('#parallel').inputValue(), '1');
-  await app.runner.dispatch({ type: 'stop' });
+  await page.goto(`https://detect.chaoxing.com/api/monitor_temp?mes=${encodeURIComponent(message)}`, { waitUntil: 'domcontentloaded' });
+  await waitFor(() => app.runner.state.status === 'attention' && !app.runner.state.queueRunning, '多终端提示后暂停');
+  assert.ok(app.runner.state.detail.includes(message));
+  assert.deepEqual(app.runner.state.courses.map(c => c.status), ['attention', 'pending']);
+  assert.equal(page.isClosed(), false, '保留提示页面供用户查看');
+  assert.equal(app.runner.courseQueue.jobs.size, 0);
   const saved = JSON.parse(await fs.readFile(path.join(dataDir, 'preferences.json'), 'utf8'));
-  assert.equal(saved.parallel, 1);
-  assert.match(saved.queueNotice, /多终端/);
+  assert.equal('parallel' in saved, false);
+  await app.runner.dispatch({ type: 'stop' });
 });
 
 test('单门模式仍收到多终端提示时显示平台原话并暂停，不反复重新进入课程', async () => {
   await app.runner.dispatch({ type: 'set-queue', courses: [{ title: '课程丙', url: `${origin}/courselist/opencoursenewfy?courseId=queueC&clazzId=1` }] });
-  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 1 } });
+  await app.runner.dispatch({ type: 'start-queue' });
   await waitFor(() => app.runner.state.status === 'playing', '单门开始');
   const page = app.runner.activePage();
   const message = '您的账号在另一台浏览器设备登入章节页面。多终端登录可能会被判定异常学习。';
   await page.goto(`https://detect.chaoxing.com/api/monitor_temp?mes=${encodeURIComponent(message)}`, { waitUntil: 'domcontentloaded' });
   await waitFor(() => app.runner.state.status === 'attention' && !app.runner.state.queueRunning, '单门冲突暂停');
   assert.ok(app.runner.state.detail.includes(message));
-  assert.match(app.runner.state.detail, /关闭其他正在学习/);
+  assert.match(app.runner.state.detail, /请按学习通提示处理/);
   assert.equal(app.runner.state.courses[0].status, 'attention');
   assert.equal(app.runner.courseQueue.jobs.size, 0);
   assert.equal(page.isClosed(), false);
   await app.runner.dispatch({ type: 'stop' });
 });
 
-test('课程打开期间触发多终端提示也能降为单门，保留原提示而非章节加载错误', { timeout: 30000 }, async () => {
+test('课程打开期间触发多终端提示时保留原提示并暂停', { timeout: 30000 }, async () => {
   await app.runner.dispatch({ type: 'set-queue', courses: [] });
   await app.runner.dispatch({ type: 'set-queue', courses: ['queueC', 'queueD'].map(id => ({ title: id, url: `${origin}/courselist/opencoursenewfy?courseId=${id}&clazzId=1` })) });
   launchConflict = true;
   await app.runner.dispatch({ type: 'start-queue', options: { parallel: 2 } });
-  await waitFor(() => app.runner.state.parallel === 1 && app.runner.state.status === 'playing', '打开阶段的冲突也按单门恢复', 22000);
-  assert.match(app.runner.state.queueNotice, /多终端/);
-  assert.deepEqual(app.runner.state.courses.map(c => c.status), ['running', 'pending']);
+  await waitFor(() => app.runner.state.status === 'attention' && !app.runner.state.queueRunning, '打开阶段提示后暂停', 22000);
+  assert.match(app.runner.state.detail, /多终端登录可能会被判定异常学习/);
+  assert.deepEqual(app.runner.state.courses.map(c => c.status), ['attention', 'pending']);
   await app.runner.dispatch({ type: 'stop' });
 });
 
 test('跳转页实际显示验证码时才暂停全部课程，保留页面供人工处理', async () => {
   await app.runner.dispatch({ type: 'set-queue', courses: ['queueC', 'queueD'].map(id => ({ title: id, url: `${origin}/mycourse/studentstudy?courseId=${id}&clazzid=1` })) });
-  await app.runner.dispatch({ type: 'start-queue', options: { parallel: 2 } });
-  await waitFor(() => app.runner.courseQueue.jobs.size === 2 && [...app.runner.courseQueue.jobs.values()].every(j => j.runner.state.status === 'playing'), '两个课程播放');
-  const [first, second] = [...app.runner.courseQueue.jobs.values()];
+  await app.runner.dispatch({ type: 'start-queue' });
+  await waitFor(() => app.runner.courseQueue.jobs.size === 1 && [...app.runner.courseQueue.jobs.values()][0].runner.state.status === 'playing', '首门课程播放');
+  const [first] = [...app.runner.courseQueue.jobs.values()];
   const page = first.runner.page;
-  const media = second.runner.page.frames().find(f => f.url().includes('/ananas/modules/video/'));
   await page.goto('https://detect.chaoxing.com/api/monitor_temp?captcha=1', { waitUntil: 'domcontentloaded' });
   await waitFor(() => !app.runner.state.queueRunning && app.runner.state.status === 'attention', '可见验证码暂停全部课程');
   assert.match(app.runner.state.detail, /验证码/);
   assert.equal(page.isClosed(), false);
-  assert.equal(await media.locator('video').evaluate(v => v.paused), true);
+  assert.equal(app.runner.state.courses[1].status, 'pending');
   await app.runner.dispatch({ type: 'stop' });
 });
 
@@ -609,7 +584,6 @@ test('浏览器登录资料和选项跨重启保留，重启后不自动开始',
   await app.context.addCookies([{ name: 'test-login', value: 'saved', domain: '.chaoxing.com', path: '/', expires: Date.now() / 1000 + 3600, secure: true }]);
   await openCourse('persist'); await start({ rate: 1.25 }); await stop();
   const savedCourses = structuredClone(app.runner.state.courses);
-  const savedParallel = app.runner.state.parallel;
   await app.close();
   app = await makeApp();
   const cookies = await app.context.cookies(origin);
@@ -619,7 +593,6 @@ test('浏览器登录资料和选项跨重启保留，重启后不自动开始',
   assert.equal(app.runner.state.enabled, false);
   assert.equal(app.runner.state.queueRunning, false);
   assert.deepEqual(app.runner.state.courses, savedCourses);
-  assert.equal(app.runner.state.parallel, savedParallel);
   assert.equal(app.runner.state.termFilter, 'auto');
   await app.dashboard.close();
   await app.closed;

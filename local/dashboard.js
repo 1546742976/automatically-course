@@ -1,7 +1,6 @@
 const $ = id => document.getElementById(id);
 const labels = { idle: '准备开始', paused: '已暂停', loading: '正在载入', playing: '连续播放中', reading: '正在阅读', solving: 'AI 正在解题', submitting: '正在提交练习', waiting: '等待章节任务', attention: '需要处理', done: '本页任务结束' };
 let busy = false, initialized = false;
-let renderedParallel;
 let latestState, catalog = [], selection = [], catalogSignature = '', queueSignature = '', termSignature = '';
 const knownCourses = new Map();
 const actionButtons = ['open', 'openURL', 'loadCourses', 'saveQueue', 'startQueue', 'start', 'stop', 'show', 'scan', 'saveAI'];
@@ -14,7 +13,6 @@ function render(state) {
   latestState = state;
   $('termNotice').textContent = state.termNotice || '';
   $('queueNotice').textContent = state.queueNotice || '';
-  if (renderedParallel !== state.parallel) { $('parallel').value = state.parallel || 2; renderedParallel = state.parallel; }
   const termKey = JSON.stringify([state.terms, state.termFilter]);
   if (termSignature !== termKey) {
     termSignature = termKey;
@@ -38,7 +36,6 @@ function render(state) {
     selection = (state.courses || []).map(c => c.id);
     $('courseURL').value = state.courseURL;
     $('rate').value = state.options.rate;
-    $('parallel').value = state.parallel || 2;
     $('muted').checked = state.options.muted;
     $('autoNext').checked = state.options.autoNext;
     $('aiBaseURL').value = state.ai?.baseURL || 'https://api.deepseek.com';
@@ -50,7 +47,7 @@ function render(state) {
   catalog = state.catalog || [];
   const signature = JSON.stringify(catalog.map(c => [c.id, c.title, c.closed]));
   if (signature !== catalogSignature) { catalogSignature = signature; renderChoices(); }
-  const queue = JSON.stringify([state.courses, state.enabled, state.queueRunning, state.parallel]);
+  const queue = JSON.stringify([state.courses, state.enabled, state.queueRunning]);
   if (queue !== queueSignature) { queueSignature = queue; renderQueue(state); }
 }
 function renderChoices() {
@@ -91,7 +88,7 @@ function renderQueue(state) {
     }
     li.append(content, buttons); return li;
   }));
-  $('queueSummary').textContent = state.courses.length ? `${state.courses.length} 门课程 · 已处理 ${state.courses.filter(c => c.status === 'done').length} 门${state.queueRunning ? ` · 最多 ${state.parallel} 门同时运行` : ' · 进度已保存在本机'}` : '尚未安排课程。';
+  $('queueSummary').textContent = state.courses.length ? `${state.courses.length} 门课程 · 已处理 ${state.courses.filter(c => c.status === 'done').length} 门${state.queueRunning ? ' · 正按顺序处理' : ' · 进度已保存在本机'}` : '尚未安排课程。';
 }
 async function call(command) {
   const result = await window.__courseAssistantControl(command);
@@ -103,7 +100,7 @@ async function action(type, extra = {}) {
   for (const id of actionButtons) $(id).disabled = true;
   $('error').textContent = '';
   try {
-    await call({ type, ...extra, url: $('courseURL').value, termFilter: $('termFilter').value, courses: selection.map(id => knownCourses.get(id)).filter(Boolean), ai: { baseURL: $('aiBaseURL').value, model: $('aiModel').value, apiKey: $('aiKey').value, vision: $('aiVision').checked }, options: { parallel: Number($('parallel').value), rate: Number($('rate').value), muted: $('muted').checked, autoNext: $('autoNext').checked } });
+    await call({ type, ...extra, url: $('courseURL').value, termFilter: $('termFilter').value, courses: selection.map(id => knownCourses.get(id)).filter(Boolean), ai: { baseURL: $('aiBaseURL').value, model: $('aiModel').value, apiKey: $('aiKey').value, vision: $('aiVision').checked }, options: { rate: Number($('rate').value), muted: $('muted').checked, autoNext: $('autoNext').checked } });
     if (type === 'save-ai') $('aiKey').value = '';
     if (['open', 'show-course'].includes(type)) showCourse();
   }
