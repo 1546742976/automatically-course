@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>学习通 · 本地课程助手</title><link rel="stylesheet" href="dashboard.css"></head>
+<body><main>
+  <header><a class="brand" href="#">自习室 <span>LOCAL</span></a><span class="local-tag"><i></i> 本机运行</span></header>
+  <section class="heading"><div class="eyebrow">让课程，顺着播下去</div><h1>选好课程，<br>其余交给队列。</h1><p>在这里登录，勾选需要处理的课程。<br>助手按安排持续处理，并保存队列进度。</p></section>
+  <div class="workspace"><section class="card setup">
+    <div class="section-title"><span>01</span><h2>登录并选择课程</h2></div>
+    <div class="connection-actions"><button id="open" class="outline">连接学习通 / 登录</button><button id="loadCourses" class="outline">刷新课程列表</button></div>
+    <details class="manual-course"><summary>直接打开课程网址</summary><label for="courseURL">学习通网址</label><input id="courseURL" type="url" placeholder="https://mooc1.chaoxing.com/mycourse/studentstudy…" autocomplete="off"><button id="openURL" class="text-button">在助手内打开</button></details>
+    <label class="setting" for="termFilter"><span>课程学期</span><select id="termFilter"><option value="auto">自动匹配当前学期</option><option value="0">全部学期</option></select></label><p id="termNotice" class="hint"></p>
+    <input id="courseSearch" type="search" placeholder="搜索课程名称" aria-label="搜索课程名称">
+    <div id="courseChoices" class="course-choices"><p class="hint">登录后刷新课程列表，即可一次勾选多门课程。</p></div>
+    <button id="saveQueue" class="outline">将所选课程加入队列</button><div class="divider"></div>
+    <div class="section-title"><span>02</span><h2>选择播放方式</h2></div>
+    <label class="setting" for="parallel"><span>同时处理课程数<small>每门课内部按章节顺序处理</small></span><select id="parallel"><option value="1">1 门 · 顺序</option><option value="2" selected>2 门 · 并行</option><option value="3">3 门 · 并行</option></select></label>
+    <label class="setting" for="rate"><span>播放速度</span><select id="rate"><option value="1">1 × 正常速度</option><option value="1.25">1.25 ×</option><option value="1.5">1.5 ×</option><option value="2">2 ×</option></select></label>
+    <label class="setting"><span>静音播放<small>建议开启，方便自动开始播放</small></span><input id="muted" type="checkbox" checked></label>
+    <label class="setting"><span>完成本页后切换下一节</span><input id="autoNext" type="checkbox" checked></label>
+    <details class="ai-settings"><summary>DeepSeek 解题设置</summary>
+      <label for="aiBaseURL">接口根地址</label><input id="aiBaseURL" type="url" value="https://api.deepseek.com">
+      <label for="aiModel">模型名称</label><input id="aiModel" type="text" value="deepseek-flash" autocomplete="off">
+      <label for="aiKey">API Key <small id="keyStatus">未配置</small></label><input id="aiKey" type="password" placeholder="仅保存在本机；留空保留原密钥" autocomplete="off">
+      <label class="setting"><span>截图识题<small>用于图片、公式和特殊字体；需要模型支持图片</small></span><input id="aiVision" type="checkbox" checked></label>
+      <p class="hint">开始后，题干、选项及所需题目截图会发送至此接口，答案填好后自动提交。AI 答案可能有误。</p>
+      <button id="saveAI" class="outline" type="button">保存 AI 设置</button>
+    </details>
+    <div class="actions"><button id="startQueue">开始 / 继续队列 <span>▶</span></button><button id="stop" class="outline" disabled>暂停</button></div>
+    <button id="start" class="text-button">只处理当前章节</button>
+    <p class="hint">有空位时自动接续下一门。需人工验证时暂停全部；其他未适配任务会记下原因。并行是否计入进度以课程平台为准。</p><p id="error" role="alert"></p>
+  </section><aside>
+    <section class="card status-card" aria-live="polite"><div class="status-top"><span class="eyebrow">当前状态</span><i id="indicator"></i></div>
+      <h2 id="status">正在连接</h2><p id="detail">读取本地助手状态…</p>
+      <div class="progress-wrap"><progress id="progress" value="0" max="1"></progress><div><span id="elapsed">00:00</span><span id="duration">--:--</span></div></div>
+      <button id="show" class="text-button">在助手内查看课程</button>
+      <button id="scan" class="text-button">扫描当前章节任务 ↻</button><ul id="tasks"></ul>
+    </section>
+    <section class="card queue-card"><div class="section-title"><span>队列</span><h2>课程安排</h2></div><ol id="courseQueue"></ol><p id="queueSummary" class="hint">尚未安排课程。</p><p id="queueNotice" class="hint" role="status"></p></section>
+    <section class="tips"><h3>开始前，只需这几步</h3><ol><li>点击连接学习通，在助手内完成登录。</li><li>按学期筛选，勾选多门课程加入队列。</li><li>选择并行数量，点击开始队列。</li></ol>
+      <p>首次登录后，本机保留浏览器登录状态。运行期间保持电脑唤醒、联网，并保留这个窗口。</p><p>支持视频、音频、部分文档阅读及文字练习。图片和特殊字体可截图识题；未知任务和人工验证会提示处理。</p>
+    </section>
+  </aside></div>
+  <footer><span>学习通本地课程助手</span><span>本地运行 · 登录状态保存在本机</span></footer>
+</main>
+<dialog id="courseDialog" aria-labelledby="courseDialogTitle">
+  <div class="course-toolbar"><h2 id="courseDialogTitle">账号与课程</h2><span class="native-tag">直接操作网页</span><button id="closeCourse" type="button">返回课程队列</button></div>
+  <nav id="courseTabs" role="tablist" aria-label="学习通页面"></nav>
+  <div class="course-navigation"><button id="courseBack" class="outline" type="button">← 返回</button><button id="courseReload" class="outline" type="button">刷新</button><button id="courseHome" class="outline" type="button">重新进入课程</button><span id="courseAddress"></span><select id="courseZoom" aria-label="网页缩放"><option value="0.8">80%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select></div>
+  <div id="courseScreen"><p id="viewMessage">正在连接页面…</p></div>
+  <p id="viewError" role="alert"></p>
+</dialog>
+<script src="dashboard.js"></script></body></html>

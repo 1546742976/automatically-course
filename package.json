@@ -1,0 +1,18 @@
+{
+  "name": "chaoxing-course-assistant",
+  "version": "0.5.7",
+  "private": true,
+  "description": "学习通本地课程助手",
+  "scripts": {
+    "start": "node local/main.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "check": "node --check local/main.cjs && node --check local/runner.cjs && node --check local/player-agent.js && node --check local/dashboard.js && node --check local/task-agent.js && node --check local/ai.cjs && node --check local/course-view.cjs && node --check local/catalog.cjs && node --check local/course-queue.cjs && node --check local/electron-shell.cjs && node --check local/document-image.cjs"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "electron": "^44.9.0",
+    "playwright": "^1.56.0"
+  }
+}

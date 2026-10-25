@@ -1,0 +1,35 @@
+# Installed dependencies and generated output
+node_modules/
+test-results/
+playwright-report/
+coverage/
+dist/
+releases/
+*.zip
+*.tsbuildinfo
+
+# Local browser profiles, login sessions, API keys and course progress
+.local-data/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local editor and operating system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini
