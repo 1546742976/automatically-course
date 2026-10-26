@@ -1,5 +1,13 @@
 const { app, BrowserWindow, WebContentsView, session } = require('electron');
 
+// An explicit executablePath (cached runtime or packaged EXE) skips Playwright's
+// automatic loader. Preserve the same ready handshake and Chromium switches,
+// including background rendering needed by screenshots of embedded task pages.
+if (!globalThis.__playwright_run) {
+  const path = require('node:path');
+  require(path.join(path.dirname(require.resolve('playwright-core/package.json')), 'lib/server/electron/loader.js'));
+}
+
 app.setPath('userData', process.env.COURSE_ASSISTANT_DATA);
 app.whenReady().then(() => {
   const window = new BrowserWindow({

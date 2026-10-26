@@ -27,17 +27,20 @@ async function legacyStorage(dataDir, executablePath) {
   const browser = await chromium.launchPersistentContext(profile, { executablePath: executablePath || findBrowser(), headless: true });
   try { return await browser.storageState(); } finally { await browser.close(); }
 }
-async function createApp({ dataDir = path.resolve(__dirname, '../.local-data'), headless = false, executablePath, prepareContext, intervalMs, settleMs } = {}) {
+async function createApp({ dataDir = path.resolve(__dirname, '../.local-data'), headless = false, executablePath, electronExecutablePath, electronArgs, prepareContext, intervalMs, settleMs } = {}) {
   await fsp.mkdir(dataDir, { recursive: true });
+  const temporaryDir = path.join(dataDir, 'tmp');
+  await fsp.mkdir(temporaryDir, { recursive: true });
   let preferences = {};
   try { preferences = JSON.parse(await fsp.readFile(path.join(dataDir, 'preferences.json'), 'utf8')); }
   catch (error) { if (error.code !== 'ENOENT') console.warn('读取上次设置失败，将使用默认设置。'); }
   const storage = await legacyStorage(dataDir, executablePath);
-  const env = { ...process.env, COURSE_ASSISTANT_DATA: path.join(dataDir, 'desktop-profile'), COURSE_ASSISTANT_HIDDEN: headless ? '1' : '0' };
+  const env = { ...process.env, TEMP: temporaryDir, TMP: temporaryDir, COURSE_ASSISTANT_DATA: path.join(dataDir, 'desktop-profile'), COURSE_ASSISTANT_HIDDEN: headless ? '1' : '0' };
   delete env.ELECTRON_RUN_AS_NODE;
   let electronApp;
   try {
-    electronApp = await _electron.launch({ args: [path.join(__dirname, 'electron-shell.cjs')], env, timeout: 30000 });
+    const runtime = electronExecutablePath || require('./startup.cjs').runnableElectron();
+    electronApp = await _electron.launch({ executablePath: runtime, args: electronArgs || [path.join(__dirname, 'electron-shell.cjs')], artifactsDir: temporaryDir, env, timeout: 30000 });
     const context = electronApp.context();
     const dashboard = await electronApp.firstWindow();
     await electronApp.evaluate(() => Boolean(globalThis.__courseShell));

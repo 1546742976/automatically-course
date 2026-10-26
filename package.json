@@ -4,15 +4,48 @@
   "private": true,
   "description": "学习通本地课程助手",
   "scripts": {
-    "start": "node local/main.cjs",
-    "test": "node --test tests/*.test.cjs",
-    "check": "node --check local/main.cjs && node --check local/runner.cjs && node --check local/player-agent.js && node --check local/dashboard.js && node --check local/task-agent.js && node --check local/ai.cjs && node --check local/course-view.cjs && node --check local/catalog.cjs && node --check local/course-queue.cjs && node --check local/electron-shell.cjs && node --check local/document-image.cjs"
+    "start": "node local/startup.cjs && node local/main.cjs",
+    "test": "node scripts/test.cjs",
+    "check": "node --check local/main.cjs && node --check local/runner.cjs && node --check local/player-agent.js && node --check local/dashboard.js && node --check local/task-agent.js && node --check local/ai.cjs && node --check local/course-view.cjs && node --check local/catalog.cjs && node --check local/course-queue.cjs && node --check local/electron-shell.cjs && node --check local/document-image.cjs && node --check local/startup.cjs && node --check local/desktop.cjs && node --check scripts/build.cjs && node --check scripts/verify-portable.cjs && node --check scripts/test.cjs",
+    "build:win": "node scripts/build.cjs",
+    "test:portable": "node scripts/verify-portable.cjs",
+    "repair:runtime": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/repair-runtime.ps1"
   },
   "engines": {
     "node": ">=22.12.0"
   },
   "dependencies": {
-    "electron": "^44.9.0",
-    "playwright": "^1.56.0"
+    "playwright": "1.64.1"
+  },
+  "main": "local/desktop.cjs",
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "local.chaoxing.courseassistant",
+    "productName": "学习通助手",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "local/**/*",
+      "package.json",
+      "!local/*.cmd",
+      "!local/*.vbs"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "signAndEditExecutable": false
+    },
+    "artifactName": "course-assistant-0.5.8-win-x64.zip"
   }
 }

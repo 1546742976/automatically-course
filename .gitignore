@@ -1,5 +1,6 @@
 # Installed dependencies and generated output
 node_modules/
+.cache/
 test-results/
 playwright-report/
 coverage/

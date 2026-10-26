@@ -456,7 +456,7 @@ test('旧并行配置被忽略，课程逐门运行并在切换前关闭上一�
   await waitFor(() => app.runner.courseQueue.jobs.size === 1 && app.runner.courseQueue.jobs.get('queueA:1')?.runner.page, '只启动队列首课');
   assert.deepEqual(app.runner.state.courses.map(c => c.status), ['running', 'pending', 'pending']);
   const firstPage = app.runner.courseQueue.jobs.get('queueA:1').runner.page;
-  await waitFor(() => app.runner.state.courses[1].status === 'running' && app.runner.courseQueue.pages.get('queueC:1') && !app.runner.courseQueue.pages.get('queueC:1').isClosed(), '首课结束后启动下一门');
+  await waitFor(() => app.runner.state.courses[1].status === 'running' && app.runner.courseQueue.jobs.get('queueC:1')?.ready && app.runner.courseQueue.pages.get('queueC:1')?.url().includes('courseId=queueC'), '首课结束后下一门课程完成导航');
   assert.equal(app.runner.courseQueue.jobs.size, 1);
   assert.equal(app.runner.state.courses[0].status, 'done');
   assert.equal(firstPage.isClosed(), true, '切换前关闭上一门课程页');
