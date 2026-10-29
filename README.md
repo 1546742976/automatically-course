@@ -4,7 +4,19 @@
 
 ## 开始使用
 
-需要安装 [Node.js 22.12 或更新版本](https://nodejs.org/)。首次启动会安装 Electron 和 Playwright 依赖。
+### Windows 便携版（推荐）
+
+1. 本机直接运行项目内的 `dist/win-unpacked/学习通助手.exe`。需要复制时，将 `course-assistant-0.5.8-win-x64.zip` **完整解压**后使用。
+2. 双击目录中的 **学习通助手.exe**。无需安装 Node.js/npm，也不会在首次启动时下载 Electron 或浏览器。
+3. 点击「连接学习通 / 登录」，完成登录后刷新课程列表，选择课程并启动队列。
+
+EXE 与同目录的 `resources`、`locales`、DLL 等文件需要一起保留，不能只复制单独的 EXE。软件运行环境随 ZIP 提供；访问学习通和 AI 服务仍需要联网。关闭后再次启动不会自动运行课程队列。
+
+便携版数据保存在 **EXE 所在目录的 `.local-data/`**，与从哪个工作目录启动无关。更新时关闭助手，将完整新版解压到新文件夹，再复制旧版的 `.local-data/`；不要让两个版本同时使用同一份资料。从源码版迁移时也可按相同步骤复制项目的 `.local-data/`。登录状态是否仍有效取决于平台。
+
+### 从源码启动
+
+需要安装 [Node.js 22.12 或更新版本](https://nodejs.org/)。首次启动按 lockfile 安装依赖，并单独检查、下载和校验 Electron 运行程序。
 
 1. 双击项目根目录的 **启动学习通助手.cmd**。
 2. 在助手中点击「连接学习通 / 登录」，完成登录后返回课程队列。
@@ -13,7 +25,7 @@
 也可以在项目目录运行：
 
 ```powershell
-npm install
+npm ci
 npm start
 ```
 
@@ -33,6 +45,23 @@ npm start
 
 应用将浏览器登录资料、课程队列、章节位置及 AI 配置保存在项目目录的 `.local-data/` 中。该目录已加入 `.gitignore`，不会作为未跟踪文件提交到 Git。不要手动将此目录加入 Git，也不要分享其中的浏览器资料或配置文件。
 
+本机项目根目录为 `E:\大学\ai尝试\automatically-course`。源码版使用项目根目录的 `.local-data/`；便携版使用 `dist/win-unpacked/.local-data/`。运行程序固定使用项目内的 `node_modules/electron/dist/`，不再向 C 盘创建运行时副本。
+
+项目生成文件统一保存在 E 盘项目内：
+
+| 内容 | 项目内位置 |
+| --- | --- |
+| 便携 EXE 和配套文件 | `dist/win-unpacked/` |
+| 便携 ZIP | `dist/course-assistant-0.5.8-win-x64.zip` |
+| Electron 下载缓存 | `.cache/electron/` |
+| 打包工具缓存 | `.cache/electron-builder/` |
+| 项目 npm 缓存 | `.cache/npm/` |
+| 构建、安装和测试临时文件 | `.cache/tmp/`、`.cache/tests/` |
+| 应用临时文件 | 对应 `.local-data/tmp/` |
+| 验证日志和截图 | `test-results/` |
+
+系统已安装的 Node.js、浏览器及其他项目共享工具保持原位置；这里迁移的是本项目的程序、资料和缓存。
+
 若启用 AI 解题，题目文字、选项以及启用截图识题时采集的题目图片会发送到控制面板中配置的 AI 接口。API Key 保存在本机的 `.local-data/ai.json`，也可通过 `DEEPSEEK_API_KEY` 环境变量提供。
 
 `.gitignore` 也排除了依赖目录、浏览器配置目录、日志、测试输出、发布压缩包、环境变量文件和常见密钥文件。Git 忽略规则只保护未跟踪文件；提交前仍应检查 Git 已跟踪文件和变更，尤其是密钥、Cookie、课程截图和日志。当前仓库没有配置开源许可证。
@@ -45,3 +74,31 @@ npm test
 ```
 
 测试使用本地模拟课程和 Electron 浏览器，不需要真实学习通账号。`local/` 包含应用与页面代码，`tests/` 包含自动化测试。
+
+## 构建 Windows 便携版
+
+在 Windows x64 上运行：
+
+```powershell
+npm ci
+npm run build:win
+```
+
+输出为 `dist/win-unpacked/学习通助手.exe` 和 `dist/course-assistant-0.5.8-win-x64.zip`。构建使用锁定的 Electron 44.9.0、Playwright 1.64.1 和 electron-builder；发布目录包含运行依赖，不包含源码版的 `.local-data/`、测试结果或密钥。首版采用解压目录形式，不提供安装器、自动更新或签名。
+
+该电脑的开发工作区存在低完整性标签，曾使 Electron 启动退出或渲染进程崩溃。源码预检和构建流程会为项目生成的运行目录恢复当前所有者权限及普通 Medium 完整性标签；不修改系统目录、不关闭浏览器沙箱，也不回退到 C 盘。需要手动修复项目内运行目录时运行 `npm run repair:runtime`。
+
+发布版验收脚本（请使用单独的空白解压目录，脚本会创建模拟队列）：
+
+```powershell
+node scripts/verify-portable.cjs "E:\大学\ai尝试\automatically-course\dist\win-unpacked" --online
+```
+
+该脚本移除子进程 PATH 中的 Node.js/npm，将依赖下载地址设置为不可达，验证启动、内嵌页面、模拟队列、重启恢复与退出。`--online` 额外验证真实学习通登录页，不登录账号。结果和截图写入 `test-results/`。
+
+## 启动故障排查
+
+- **Electron 下载失败**：npm 包安装成功不代表 Electron 运行程序已就绪。预检会单独补齐运行程序；下载优先使用 `HTTPS_PROXY`/`HTTP_PROXY`，否则读取已启用的 Windows 静态代理，仅传给下载子进程，不修改系统设置。PAC 自动代理需另行提供显式代理地址。
+- **缺少 Node.js**：只影响源码版。安装 Node.js 22.12+，或直接使用便携 ZIP。
+- **目录不可写或运行程序受限**：不要在压缩包内直接运行；项目内版本可先运行 `npm run repair:runtime`，再双击 EXE。
+- **错误日志**：源码双击启动和便携版均使用各自 `.local-data/startup.log`；弹窗会指出日志位置。反馈问题前请检查并隐藏其中的私人信息。
