@@ -45,9 +45,9 @@ npm start
 
 应用将浏览器登录资料、课程队列、章节位置及 AI 配置保存在项目目录的 `.local-data/` 中。该目录已加入 `.gitignore`，不会作为未跟踪文件提交到 Git。不要手动将此目录加入 Git，也不要分享其中的浏览器资料或配置文件。
 
-本机项目根目录为 `E:\大学\ai尝试\automatically-course`。源码版使用项目根目录的 `.local-data/`；便携版使用 `dist/win-unpacked/.local-data/`。运行程序固定使用项目内的 `node_modules/electron/dist/`，不再向 C 盘创建运行时副本。
 
-项目生成文件统一保存在 E 盘项目内：
+
+项目生成文件统一保存在项目内：
 
 | 内容 | 项目内位置 |
 | --- | --- |
